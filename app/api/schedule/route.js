@@ -41,6 +41,7 @@ export async function POST(req) {
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
+
     if (!apiKey) {
       return Response.json(
         { error: "Falta configurar GEMINI_API_KEY en el servidor" },
@@ -64,6 +65,9 @@ export async function POST(req) {
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
+
+      console.error("Error de Gemini:", geminiRes.status, errText);
+
       return Response.json(
         { error: "Error al llamar a la IA", detail: errText },
         { status: 502 }
@@ -71,13 +75,19 @@ export async function POST(req) {
     }
 
     const data = await geminiRes.json();
-    const raw = data?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("\n") || "";
+
+    const raw =
+      data?.candidates?.[0]?.content?.parts
+        ?.map((part) => part.text || "")
+        .join("\n") || "";
 
     const clean = raw.replace(/```json|```/g, "").trim();
+
     let parsed;
+
     try {
       parsed = JSON.parse(clean);
-    } catch (e) {
+    } catch {
       return Response.json(
         { error: "La IA respondió en un formato inesperado" },
         { status: 502 }
@@ -85,19 +95,24 @@ export async function POST(req) {
     }
 
     const safeEntries = (parsed.new_entries || []).filter(
-      (e) =>
-        e &&
-        e.start &&
-        e.end &&
-        e.activity &&
-        (e.day === "todos" || DAY_IDS.includes(e.day))
+      (entry) =>
+        entry &&
+        entry.start &&
+        entry.end &&
+        entry.activity &&
+        (entry.day === "todos" || DAY_IDS.includes(entry.day))
     );
 
     return Response.json({
       new_entries: safeEntries,
       reply: parsed.reply || "Listo, lo agregué.",
     });
-  } catch (e) {
-    return Response.json({ error: "Error inesperado en el servidor" }, { status: 500 });
+  } catch (error) {
+    console.error("Error inesperado:", error);
+
+    return Response.json(
+      { error: "Error inesperado en el servidor" },
+      { status: 500 }
+    );
   }
 }
