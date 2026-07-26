@@ -204,7 +204,7 @@ export default function Home() {
         body: JSON.stringify({ currentEntries: entries, message }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "error");
+      if (!res.ok) throw new Error(data.detail || data.error || "error");
 
       const added = expandEntries(data.new_entries);
       const nextEntries = [...entries, ...added];
@@ -215,7 +215,7 @@ export default function Home() {
       setChat(finalChat);
       persist(nextEntries, finalChat);
     } catch (e) {
-      setError("No se pudo procesar ese mensaje. Intenta de nuevo.");
+      setError(e.message || "No se pudo procesar ese mensaje. Intenta de nuevo.");
     } finally {
       setSending(false);
     }
@@ -407,3 +407,4 @@ export default function Home() {
     </div>
   );
 }
+
